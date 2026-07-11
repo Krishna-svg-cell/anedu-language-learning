@@ -44,6 +44,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   void _handleSocialLogin(String provider) async {
+    if (!LocalDb.isFirebaseInitialized) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication service is unavailable. Try Guest access.'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+      return;
+    }
     if (provider == 'Google') {
       try {
         final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
@@ -74,6 +85,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   void _handleEmailLogin() async {
+    if (!LocalDb.isFirebaseInitialized) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Authentication service is unavailable. Try Guest access.'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+      return;
+    }
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
@@ -119,21 +141,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   void _handleGuestLogin() async {
     try {
-      final UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
-      final user = userCredential.user;
-      if (user != null) {
-        await _performPostLoginTasks(user.uid);
+      if (LocalDb.isFirebaseInitialized) {
+        final UserCredential userCredential = await FirebaseAuth.instance.signInAnonymously();
+        final user = userCredential.user;
+        if (user != null) {
+          await _performPostLoginTasks(user.uid);
+          return;
+        }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Guest Sign-In failed: $e'),
-            backgroundColor: AppTheme.errorRed,
-          ),
-        );
-      }
+      debugPrint('Firebase Anonymous Sign-In failed: $e. Falling back to offline guest account.');
     }
+    // Offline guest fallback
+    await _performPostLoginTasks('guest_user');
   }
 
   @override

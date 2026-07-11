@@ -84,7 +84,9 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('users').snapshots(),
+      stream: LocalDb.isFirebaseInitialized
+          ? FirebaseFirestore.instance.collection('users').snapshots()
+          : null,
       builder: (context, snapshot) {
         final List<UserProgress> dbUsers = [];
         if (snapshot.hasData && snapshot.data != null) {

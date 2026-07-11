@@ -20,6 +20,7 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    LocalDb.configureFirebasePersistence();
     debugPrint("Firebase setup detected: Offline synchronization ready.");
   } catch (e) {
     debugPrint(

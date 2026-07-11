@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -17,17 +18,16 @@ class LocalDb {
   static const String lessonsBoxName = 'lessons_box';
   static const String usersBoxName = 'users_box';
 
-  static Future<void> init() async {
-    await Hive.initFlutter();
-    await Hive.openBox(settingsBoxName);
-    await Hive.openBox(progressBoxName);
-    await Hive.openBox(lessonsBoxName);
-    await Hive.openBox(usersBoxName);
-    await Hive.openBox('ai_chat_box');
-    await Hive.openBox('speech_history');
-    await AgentOrchestrator.init();
+  static bool get isFirebaseInitialized {
+    try {
+      return Firebase.apps.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
-    // Initialize Firestore settings for hybrid offline-first persistence
+  static void configureFirebasePersistence() {
+    if (!isFirebaseInitialized) return;
     try {
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: true,
@@ -37,6 +37,17 @@ class LocalDb {
     } catch (e) {
       debugPrint("Warning setting Firestore settings: $e");
     }
+  }
+
+  static Future<void> init() async {
+    await Hive.initFlutter();
+    await Hive.openBox(settingsBoxName);
+    await Hive.openBox(progressBoxName);
+    await Hive.openBox(lessonsBoxName);
+    await Hive.openBox(usersBoxName);
+    await Hive.openBox('ai_chat_box');
+    await Hive.openBox('speech_history');
+    await AgentOrchestrator.init();
 
     // Seed Gemini API Key & Backend Proxy URL securely
     final settingsBox = Hive.box(settingsBoxName);
@@ -258,6 +269,7 @@ class LocalDb {
     await _progressBox.put('user_progress', progress.toJson());
 
     // Synchronize to Firestore for all Firebase authenticated accounts (including anonymous Guests)
+    if (!isFirebaseInitialized) return;
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       try {
@@ -273,6 +285,7 @@ class LocalDb {
   }
 
   static Future<void> restoreProgressFromFirestore(String uid) async {
+    if (!isFirebaseInitialized) return;
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
@@ -545,6 +558,7 @@ class LocalDb {
     await _lessonsBox.put(lessonId, stateMap);
 
     // Sync to Firestore
+    if (!isFirebaseInitialized) return;
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       try {
