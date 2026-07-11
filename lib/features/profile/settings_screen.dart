@@ -419,6 +419,103 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
 
+          // Delete Account Option (App Store Compliance Guideline 5.1.1)
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.no_accounts_outlined,
+                color: AppTheme.errorRed,
+              ),
+              title: const Text(
+                'Delete Account Permanently',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.errorRed,
+                ),
+              ),
+              subtitle: const Text(
+                'Permanently purges all statistical logs, profiles, and backend database entries linked to your email.',
+              ),
+              onTap: () {
+                final activeId = LocalDb.activeUserId;
+                if (!activeId.startsWith('google_user_')) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cannot delete guest account progress. Use Reset Cache instead.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+                
+                final email = activeId.substring('google_user_'.length);
+
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Account Permanently?'),
+                    content: Text(
+                      'This action will permanently delete user profile and progress records for $email from both this device and the backend database. This action is irreversible.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          Navigator.pop(context); // close dialog
+                          
+                          // Show loading indicator
+                          showDialog(
+                            context: this.context,
+                            barrierDismissible: false,
+                            builder: (context) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+
+                          final success = await LocalDb.deleteUserAccount(email);
+                          
+                          if (this.mounted) {
+                            Navigator.pop(this.context); // close spinner
+                            
+                            if (success) {
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Your account and server progress have been deleted permanently.'),
+                                  backgroundColor: AppTheme.successGreen,
+                                ),
+                              );
+                              ref.read(userProgressProvider.notifier).reloadProgress();
+                              ref.read(lessonsListProvider.notifier).reloadLessons();
+                              this.context.go('/auth');
+                            } else {
+                              ScaffoldMessenger.of(this.context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to delete account. Please try again.'),
+                                  backgroundColor: AppTheme.errorRed,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                        child: const Text(
+                          'Delete My Account',
+                          style: TextStyle(
+                            color: AppTheme.errorRed,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+
           // Log Out Option
           Card(
             child: ListTile(

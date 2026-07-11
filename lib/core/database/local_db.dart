@@ -23,6 +23,7 @@ class LocalDb {
   static const String progressBoxName = 'progress_box';
   static const String lessonsBoxName = 'lessons_box';
   static const String usersBoxName = 'users_box';
+  static const String backendAuthKey = 'AneduSecureAppHandshakeKey2026';
 
   static bool get isFirebaseInitialized {
     try {
@@ -153,7 +154,10 @@ class LocalDb {
         cleanUrl = cleanUrl.replaceAll('localhost', '10.0.2.2');
       }
       final uri = Uri.parse('$cleanUrl/api/health');
-      final response = await http.get(uri).timeout(const Duration(seconds: 4));
+      final response = await http.get(
+        uri,
+        headers: {'x-anedu-auth': backendAuthKey},
+      ).timeout(const Duration(seconds: 4));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['status'] == 'healthy') {
@@ -234,7 +238,10 @@ class LocalDb {
     try {
       final response = await http.post(
         Uri.parse('$backend/api/verify-subscription'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'x-anedu-auth': backendAuthKey,
+        },
         body: jsonEncode({
           'userId': activeUser,
           'subscriptionToken': mockToken,
@@ -340,7 +347,10 @@ class LocalDb {
       final List<String> journeyOrder = List<String>.from(_settingsBox.get('journey_order') ?? []);
       await http.post(
         Uri.parse('$cleanUrl/api/progress'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'x-anedu-auth': backendAuthKey,
+        },
         body: jsonEncode({
           'email': email,
           'progress': {
@@ -366,7 +376,10 @@ class LocalDb {
       if (cleanUrl.endsWith('/')) {
         cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
       }
-      final response = await http.get(Uri.parse('$cleanUrl/api/progress/${Uri.encodeComponent(email)}'));
+      final response = await http.get(
+        Uri.parse('$cleanUrl/api/progress/${Uri.encodeComponent(email)}'),
+        headers: {'x-anedu-auth': backendAuthKey},
+      );
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
         final progress = UserProgress.fromJson(data);
@@ -381,6 +394,41 @@ class LocalDb {
       }
     } catch (e) {
       debugPrint("Error syncing progress from Node backend: $e");
+    }
+  }
+
+  static Future<bool> deleteUserAccount(String email) async {
+    final backendUrl = geminiBackendUrl;
+    final cleanEmail = email.trim();
+    final String userId = "google_user_$cleanEmail";
+
+    if (backendUrl.isNotEmpty) {
+      try {
+        String cleanUrl = backendUrl.trim();
+        if (cleanUrl.endsWith('/')) {
+          cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+        }
+        final response = await http.delete(
+          Uri.parse('$cleanUrl/api/progress/${Uri.encodeComponent(cleanEmail)}'),
+          headers: {'x-anedu-auth': backendAuthKey},
+        ).timeout(const Duration(seconds: 5));
+        if (response.statusCode == 200) {
+          debugPrint("Successfully deleted account progress from backend server for $cleanEmail");
+        }
+      } catch (e) {
+        debugPrint("Error deleting account progress on backend server: $e");
+      }
+    }
+
+    try {
+      await _usersBox.delete(userId);
+      await _progressBox.delete('user_progress');
+      await setActiveUserId('guest_user');
+      await setOnboardingCompleted(false);
+      return true;
+    } catch (e) {
+      debugPrint("Error clearing local progress boxes: $e");
+      return false;
     }
   }
 

@@ -31,7 +31,10 @@ class GeminiService {
         debugPrint("Attempting backend proxy request to: $uri");
         final response = await http.post(
           uri,
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'x-anedu-auth': LocalDb.backendAuthKey,
+          },
           body: jsonEncode({
             'conversationHistory': conversationHistory,
             'systemInstruction': systemInstruction,

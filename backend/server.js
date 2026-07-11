@@ -11,9 +11,20 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const API_SECRET_KEY = process.env.API_SECRET_KEY || 'AneduSecureAppHandshakeKey2026';
+
+// Middleware to verify authorization handshake headers
+function verifyAuth(req, res, next) {
+  const clientKey = req.headers['x-anedu-auth'];
+  if (!clientKey || clientKey !== API_SECRET_KEY) {
+    console.warn(`Unauthorized request blocked from IP: ${req.ip}`);
+    return res.status(401).json({ error: "Unauthorized access: Invalid or missing API handshake credentials." });
+  }
+  next();
+}
 
 // POST api/generate endpoint to proxy to Gemini
-app.post('/api/generate', async (req, res) => {
+app.post('/api/generate', verifyAuth, async (req, res) => {
   const { conversationHistory, systemInstruction } = req.body;
 
   if (!GEMINI_API_KEY) {
@@ -99,7 +110,7 @@ app.post('/api/generate', async (req, res) => {
 });
 
 // Alias endpoint for flexibility
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', verifyAuth, async (req, res) => {
   const { conversationHistory, systemInstruction } = req.body;
   if (!GEMINI_API_KEY) {
     return res.status(500).json({ error: "Gemini API key is not configured on the server." });
@@ -192,55 +203,88 @@ app.post('/api/verified-lessons/review', (req, res) => {
   return res.json({ success: true, status: cached.lifecycleStatus });
 });
 
-const fs = require('fs');
 const path = require('path');
-const PROGRESS_DB_FILE = path.join(__dirname, 'progress_database.json');
+const sqlite3 = require('sqlite3').verbose();
 
-// Helper to read database
-function readProgressDb() {
-  try {
-    if (fs.existsSync(PROGRESS_DB_FILE)) {
-      const raw = fs.readFileSync(PROGRESS_DB_FILE, 'utf8');
-      return JSON.parse(raw);
-    }
-  } catch (e) {
-    console.error("Error reading progress DB:", e);
+const dbPath = path.join(__dirname, 'database.sqlite');
+const db = new sqlite3.Database(dbPath, (err) => {
+  if (err) {
+    console.error("Failed to connect to SQLite database:", err);
+  } else {
+    console.log("Connected to SQLite persistent database:", dbPath);
+    // Initialize database tables
+    db.run(`
+      CREATE TABLE IF NOT EXISTS user_progress (
+        email TEXT PRIMARY KEY,
+        progress_data TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, (tableErr) => {
+      if (tableErr) console.error("Error creating user_progress table:", tableErr);
+    });
   }
-  return {};
-}
-
-// Helper to write database
-function writeProgressDb(data) {
-  try {
-    fs.writeFileSync(PROGRESS_DB_FILE, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) {
-    console.error("Error writing progress DB:", e);
-  }
-}
+});
 
 // GET progress for an email
-app.get('/api/progress/:email', (req, res) => {
+app.get('/api/progress/:email', verifyAuth, (req, res) => {
   const { email } = req.params;
-  console.log(`Fetching progress for email: ${email}`);
-  const db = readProgressDb();
-  const record = db[email.toLowerCase().trim()];
-  if (record) {
-    return res.json(record);
-  }
-  return res.status(404).json({ error: "Progress not found" });
+  const cleanEmail = email.toLowerCase().trim();
+  console.log(`Fetching SQLite progress for email: ${cleanEmail}`);
+  
+  db.get('SELECT progress_data FROM user_progress WHERE email = ?', [cleanEmail], (err, row) => {
+    if (err) {
+      console.error("Database query error on progress fetch:", err);
+      return res.status(500).json({ error: "Internal database query error." });
+    }
+    if (row) {
+      try {
+        const parsed = JSON.parse(row.progress_data);
+        return res.json(parsed);
+      } catch (parseErr) {
+        console.error("JSON parsing error on row data:", parseErr);
+        return res.status(500).json({ error: "Corrupted database record." });
+      }
+    }
+    return res.status(404).json({ error: "Progress not found" });
+  });
 });
 
 // POST save progress for an email
-app.post('/api/progress', (req, res) => {
+app.post('/api/progress', verifyAuth, (req, res) => {
   const { email, progress } = req.body;
   if (!email || !progress) {
     return res.status(400).json({ error: "Missing email or progress data" });
   }
-  console.log(`Saving progress for email: ${email}`);
-  const db = readProgressDb();
-  db[email.toLowerCase().trim()] = progress;
-  writeProgressDb(db);
-  return res.json({ success: true });
+  const cleanEmail = email.toLowerCase().trim();
+  console.log(`Saving SQLite progress for email: ${cleanEmail}`);
+  const dataString = JSON.stringify(progress);
+  
+  db.run(
+    'INSERT INTO user_progress (email, progress_data, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(email) DO UPDATE SET progress_data = excluded.progress_data, updated_at = CURRENT_TIMESTAMP',
+    [cleanEmail, dataString],
+    (err) => {
+      if (err) {
+        console.error("Database write error on progress save:", err);
+        return res.status(500).json({ error: "Failed to write user progress to database." });
+      }
+      return res.json({ success: true });
+    }
+  );
+});
+
+// DELETE progress for an email (Compliance Guideline 5.1.1)
+app.delete('/api/progress/:email', verifyAuth, (req, res) => {
+  const { email } = req.params;
+  const cleanEmail = email.toLowerCase().trim();
+  console.log(`Deleting SQL progress for email: ${cleanEmail}`);
+  
+  db.run('DELETE FROM user_progress WHERE email = ?', [cleanEmail], function(err) {
+    if (err) {
+      console.error("Database write error on progress delete:", err);
+      return res.status(500).json({ error: "Failed to remove database record." });
+    }
+    return res.json({ success: true, deleted: this.changes > 0 });
+  });
 });
 
 // Health check endpoint for diagnostic connection testing
