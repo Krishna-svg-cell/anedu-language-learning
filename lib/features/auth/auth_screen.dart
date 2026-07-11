@@ -7,6 +7,7 @@ import '../../core/database/local_db.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/mittu_widget.dart';
+import '../../models/user_progress.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -44,6 +45,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   void _handleSocialLogin(String provider) async {
+    if (provider == 'Google' && !LocalDb.isFirebaseInitialized) {
+      _showSimulatedGoogleLogin();
+      return;
+    }
     if (!LocalDb.isFirebaseInitialized) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -161,6 +166,219 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _showSimulatedGoogleLogin() {
+    String selectedRole = 'Working Professional';
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              backgroundColor: isDark ? const Color(0xFF1E1E38) : Colors.white,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(28.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Image.network(
+                            'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+                            height: 24,
+                            width: 24,
+                            errorBuilder: (context, error, stackTrace) => const Icon(
+                              Icons.g_mobiledata,
+                              size: 28,
+                              color: AppTheme.primaryBlue,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Sign in with Google',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Choose an account to continue to ANEDU (Simulated Local Mode):',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          color: isDark ? const Color(0xFF151528) : const Color(0xFFF3F8FF),
+                        ),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppTheme.primaryBlue,
+                            child: const Text(
+                              'K',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          title: const Text(
+                            'Krishna Teja',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: const Text('krishnatejakanasi026@gmail.com'),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Select Your Learning Profile & Preference:',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryBlue,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      DropdownButtonFormField<String>(
+                        value: selectedRole,
+                        dropdownColor: isDark ? const Color(0xFF1E1E38) : Colors.white,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                        items: [
+                          'Working Professional',
+                          'Student',
+                          'Tourist',
+                          'Homemaker',
+                        ].map((role) {
+                          return DropdownMenuItem<String>(
+                            value: role,
+                            child: Text(role),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setDialogState(() {
+                              selectedRole = val;
+                            });
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 28),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () async {
+                          Navigator.pop(context); // close dialog
+                          
+                          // Show a loading indicator since we are pregenerating the AI lesson
+                          showDialog(
+                            context: this.context,
+                            barrierDismissible: false,
+                            builder: (context) => const Center(
+                              child: Card(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      CircularProgressIndicator(),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'AI Agent is generating your personalized situation path...',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+
+                          // 1. Map role to motivation and places
+                          String motivation = 'Daily Survival';
+                          List<String> visitedPlaces = ['Metro', 'Cafe'];
+                          if (selectedRole == 'Working Professional') {
+                            motivation = 'Job / Office';
+                            visitedPlaces = ['Office', 'Meeting Room', 'Cafeteria', 'Metro'];
+                          } else if (selectedRole == 'Student') {
+                            motivation = 'College / Study';
+                            visitedPlaces = ['Classroom', 'Hostel', 'Canteen', 'Library', 'Metro'];
+                          } else if (selectedRole == 'Tourist') {
+                            motivation = 'Travel / Tourism';
+                            visitedPlaces = ['Hotel', 'Heritage Site', 'Auto Stand', 'Bus Station'];
+                          } else if (selectedRole == 'Homemaker') {
+                            motivation = 'Daily Life';
+                            visitedPlaces = ['Apartment', 'Grocery Market', 'Tailor Shop', 'Supermarket'];
+                          }
+
+                          // 2. Construct UserProgress
+                          final progress = UserProgress(
+                            name: 'Krishna Teja',
+                            role: selectedRole,
+                            motivation: motivation,
+                            visitedPlaces: visitedPlaces,
+                            commuteModes: ['Cab', 'Metro'],
+                            level: 'None',
+                            nativeLanguage: 'English',
+                            learningGoal: motivation,
+                            initialConfidence: 15,
+                            currentConfidence: 15,
+                            lastActive: DateTime.now(),
+                          );
+
+                          // 3. Save details
+                          await LocalDb.saveUserProgress(progress);
+                          await LocalDb.updateJourneyOrderOnPreferenceChange(progress);
+                          await LocalDb.setOnboardingCompleted(true);
+                          
+                          // 4. Trigger AI agent pregeneration of Day 1
+                          try {
+                            await ref.read(lessonsListProvider.notifier).pregeneratePersonalizedLesson(1);
+                          } catch (e) {
+                            debugPrint('Error pregenerating personalized lesson: $e');
+                          }
+
+                          if (this.mounted) {
+                            Navigator.pop(this.context); // close progress dialog
+                            await _performPostLoginTasks('google_user_krishna');
+                          }
+                        },
+                        child: const Text('Sign In & Personalize Path'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
