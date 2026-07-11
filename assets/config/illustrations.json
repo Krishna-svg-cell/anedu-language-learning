@@ -1,0 +1,27 @@
+{
+  "basics_1": {
+    "image": "assets/images/situations/basics_1.png",
+    "animation": "mittu_wave",
+    "title": "Welcome to Karnataka!"
+  },
+  "greetings_1": {
+    "image": "assets/images/situations/greetings_1.png",
+    "animation": "mittu_wave",
+    "title": "Apartment Elevator Chat"
+  },
+  "travel_1": {
+    "image": "assets/images/situations/travel_1.png",
+    "animation": "mittu_talking",
+    "title": "Talking to an Auto Driver"
+  },
+  "restaurant_1": {
+    "image": "assets/images/situations/restaurant_1.png",
+    "animation": "mittu_talking",
+    "title": "Ordering Food at Darshini"
+  },
+  "workplace_1": {
+    "image": "assets/images/situations/workplace_1.png",
+    "animation": "mittu_talking",
+    "title": "Breakroom Conversation"
+  }
+}
