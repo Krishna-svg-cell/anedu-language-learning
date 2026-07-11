@@ -20,6 +20,8 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _googleEmailController = TextEditingController(text: 'krishnatejakanasi026@gmail.com');
+  final _googleNameController = TextEditingController(text: 'Krishna Teja');
   bool _isSignUp = false;
 
   Future<void> _performPostLoginTasks(String uid) async {
@@ -166,20 +168,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _googleEmailController.dispose();
+    _googleNameController.dispose();
     super.dispose();
   }
 
   void _showSimulatedGoogleLogin() {
-    List<Map<String, String>> accounts = [
+    // Initial states derived from controllers
+    String selectedEmail = _googleEmailController.text;
+    String selectedRole = 'Working Professional';
+
+    List<Map<String, String>> quickTestAccounts = [
       {'name': 'Krishna Teja', 'email': 'krishnatejakanasi026@gmail.com'},
       {'name': 'Anedu Tester', 'email': 'test.anedu@gmail.com'},
     ];
-    String selectedEmail = 'krishnatejakanasi026@gmail.com';
-    String selectedRole = 'Working Professional';
-    
-    bool isAddingCustom = false;
-    String newName = '';
-    String newEmail = '';
 
     showDialog(
       context: context,
@@ -189,15 +191,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           builder: (context, setDialogState) {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             
-            // Generate userId based on selected email
+            // Check if the current email has an existing account in our database
             final String userId = "google_user_${selectedEmail.replaceAll('@', '_').replaceAll('.', '_')}";
             final bool userExists = Hive.box(LocalDb.usersBoxName).containsKey(userId);
-
-            // Find selected account details
-            final selectedAccount = accounts.firstWhere(
-              (acc) => acc['email'] == selectedEmail,
-              orElse: () => accounts.first,
-            );
 
             return Dialog(
               shape: RoundedRectangleBorder(
@@ -211,6 +207,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Header
                       Row(
                         children: [
                           Image.network(
@@ -232,308 +229,280 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 20),
+
+                      // Email input (allows ANY email id to log in directly)
+                      Text(
+                        'Enter your Google email id directly:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.grey[300] : Colors.grey[700],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _googleEmailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          hintText: 'example@gmail.com',
+                          prefixIcon: const Icon(Icons.email_outlined, color: AppTheme.primaryBlue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        ),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            selectedEmail = val.trim();
+                          });
+                        },
+                      ),
                       const SizedBox(height: 16),
-                      if (!isAddingCustom) ...[
+
+                      // If new account, ask for Name and Preference
+                      if (!userExists) ...[
                         Text(
-                          'Choose an account to continue to ANEDU:',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          'Full Name:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
                             color: isDark ? Colors.grey[300] : Colors.grey[700],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        // Display list of accounts as selectable cards
-                        ...accounts.map((acc) {
-                          final isSelected = acc['email'] == selectedEmail;
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppTheme.primaryBlue
-                                    : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
-                                width: isSelected ? 2.0 : 1.5,
-                              ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _googleNameController,
+                          decoration: InputDecoration(
+                            hintText: 'Enter your name',
+                            prefixIcon: const Icon(Icons.person_outline, color: AppTheme.primaryBlue),
+                            border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              color: isSelected
-                                  ? (isDark ? const Color(0xFF1B2A4A) : const Color(0xFFEBF4FF))
-                                  : (isDark ? const Color(0xFF151528) : Colors.white),
                             ),
-                            child: ListTile(
-                              onTap: () {
-                                setDialogState(() {
-                                  selectedEmail = acc['email']!;
-                                });
-                              },
-                              leading: CircleAvatar(
-                                backgroundColor: isSelected ? AppTheme.primaryBlue : Colors.grey,
-                                child: Text(
-                                  acc['name']!.isNotEmpty ? acc['name']![0].toUpperCase() : 'G',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              title: Text(
-                                acc['name']!,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text(acc['email']!),
-                              trailing: isSelected
-                                  ? const Icon(Icons.check_circle, color: AppTheme.primaryBlue)
-                                  : null,
-                            ),
-                          );
-                        }),
-                        // Add custom account button
-                        TextButton.icon(
-                          onPressed: () {
-                            setDialogState(() {
-                              isAddingCustom = true;
-                              newName = '';
-                              newEmail = '';
-                            });
-                          },
-                          icon: const Icon(Icons.add, color: AppTheme.primaryBlue),
-                          label: const Text(
-                            'Add custom Google account...',
-                            style: TextStyle(color: AppTheme.primaryBlue, fontWeight: FontWeight.bold),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        
-                        // Status indicator
+                        const SizedBox(height: 16),
+                        Text(
+                          'Select Your Learning Preference:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.grey[300] : Colors.grey[700],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          value: selectedRole,
+                          dropdownColor: isDark ? const Color(0xFF1E1E38) : Colors.white,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                          items: [
+                            'Working Professional',
+                            'Student',
+                            'Tourist',
+                            'Homemaker',
+                          ].map((role) {
+                            return DropdownMenuItem<String>(
+                              value: role,
+                              child: Text(role),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setDialogState(() {
+                                selectedRole = val;
+                              });
+                            }
+                          },
+                        ),
+                      ] else ...[
+                        // Green Success alert for returning user
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: userExists
-                                ? (isDark ? const Color(0xFF143A2A) : const Color(0xFFE6F4EA))
-                                : (isDark ? const Color(0xFF3C2F15) : const Color(0xFFFEF7E0)),
+                            color: isDark ? const Color(0xFF143A2A) : const Color(0xFFE6F4EA),
                             borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.withOpacity(0.3)),
                           ),
                           child: Row(
                             children: [
-                              Icon(
-                                userExists ? Icons.cloud_done_outlined : Icons.person_add_alt_1_outlined,
-                                color: userExists ? Colors.green : Colors.orange,
-                              ),
+                              const Icon(Icons.cloud_done_outlined, color: Colors.green),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  userExists
-                                      ? 'Returning account detected. Stored preferences and progress will be loaded.'
-                                      : 'New account detected. Please select your preferences below.',
+                                  'Linked Google profile found! Progress and settings will be permanently synced.',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
-                                    color: userExists
-                                        ? (isDark ? Colors.green[200] : Colors.green[800])
-                                        : (isDark ? Colors.orange[200] : Colors.orange[800]),
+                                    color: isDark ? Colors.green[200] : Colors.green[800],
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        
-                        const SizedBox(height: 20),
-                        
-                        // Preference dropdown (Only shown if account is new)
-                        if (!userExists) ...[
-                          Text(
-                            'Select Your Learning Profile & Preference:',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryBlue,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
-                            value: selectedRole,
-                            dropdownColor: isDark ? const Color(0xFF1E1E38) : Colors.white,
-                            decoration: InputDecoration(
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                            items: [
-                              'Working Professional',
-                              'Student',
-                              'Tourist',
-                              'Homemaker',
-                            ].map((role) {
-                              return DropdownMenuItem<String>(
-                                value: role,
-                                child: Text(role),
-                              );
-                            }).toList(),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setDialogState(() {
-                                  selectedRole = val;
-                                });
-                              }
-                            },
-                          ),
-                        ],
-                      ] else ...[
-                        Text(
-                          'Add Mock Google Account',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Enter Full Name',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          onChanged: (val) => newName = val.trim(),
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Enter Email Address',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          onChanged: (val) => newEmail = val.trim(),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () {
-                                setDialogState(() {
-                                  isAddingCustom = false;
-                                });
-                              },
-                              child: const Text('Cancel'),
-                            ),
-                            const SizedBox(width: 12),
-                            ElevatedButton(
-                              onPressed: () {
-                                if (newName.isEmpty || newEmail.isEmpty || !newEmail.contains('@')) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Please enter a valid name and email address.'),
-                                      backgroundColor: AppTheme.errorRed,
-                                    ),
-                                  );
-                                  return;
-                                }
-                                setDialogState(() {
-                                  accounts.add({'name': newName, 'email': newEmail});
-                                  selectedEmail = newEmail;
-                                  isAddingCustom = false;
-                                });
-                              },
-                              child: const Text('Add & Select'),
-                            ),
-                          ],
-                        ),
                       ],
-                      if (!isAddingCustom) ...[
-                        const SizedBox(height: 28),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          onPressed: () async {
-                            Navigator.pop(context); // close dialog
-                            
-                            // Show a loading indicator since we are pregenerating the AI lesson
-                            showDialog(
-                              context: this.context,
-                              barrierDismissible: false,
-                              builder: (context) => const Center(
-                                child: Card(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(24.0),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        CircularProgressIndicator(),
-                                        SizedBox(height: 16),
-                                        Text(
-                                          'AI Agent is generating your personalized situation path...',
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
-                                    ),
+                      const SizedBox(height: 20),
+
+                      // Quick-test profiles row
+                      Text(
+                        'Or click a profile to autofill:',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: quickTestAccounts.map((acc) {
+                          final isCurrent = acc['email'] == selectedEmail;
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  backgroundColor: isCurrent 
+                                      ? (isDark ? const Color(0xFF1B2A4A) : const Color(0xFFEBF4FF)) 
+                                      : Colors.transparent,
+                                  side: BorderSide(
+                                    color: isCurrent ? AppTheme.primaryBlue : Colors.grey.withOpacity(0.4),
+                                    width: isCurrent ? 2 : 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                                onPressed: () {
+                                  _googleEmailController.text = acc['email']!;
+                                  _googleNameController.text = acc['name']!;
+                                  setDialogState(() {
+                                    selectedEmail = acc['email']!;
+                                  });
+                                },
+                                child: Text(
+                                  acc['name']!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isCurrent ? AppTheme.primaryBlue : (isDark ? Colors.white : Colors.black87),
                                   ),
                                 ),
                               ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                      const SizedBox(height: 28),
+
+                      // Primary action button
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: () async {
+                          if (selectedEmail.isEmpty || !selectedEmail.contains('@')) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please enter a valid Google email address.'),
+                                backgroundColor: AppTheme.errorRed,
+                              ),
+                            );
+                            return;
+                          }
+                          
+                          Navigator.pop(context); // close dialog
+                          
+                          // Show a loading indicator since we are pregenerating the AI lesson
+                          showDialog(
+                            context: this.context,
+                            barrierDismissible: false,
+                            builder: (context) => const Center(
+                              child: Card(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24.0),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      CircularProgressIndicator(),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        'AI Agent is generating your personalized situation path...',
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+
+                          if (!userExists) {
+                            // 1. Map role to motivation and places
+                            String motivation = 'Daily Survival';
+                            List<String> visitedPlaces = ['Metro', 'Cafe'];
+                            if (selectedRole == 'Working Professional') {
+                              motivation = 'Job / Office';
+                              visitedPlaces = ['Office', 'Meeting Room', 'Cafeteria', 'Metro'];
+                            } else if (selectedRole == 'Student') {
+                              motivation = 'College / Study';
+                              visitedPlaces = ['Classroom', 'Hostel', 'Canteen', 'Library', 'Metro'];
+                            } else if (selectedRole == 'Tourist') {
+                              motivation = 'Travel / Tourism';
+                              visitedPlaces = ['Hotel', 'Heritage Site', 'Auto Stand', 'Bus Station'];
+                            } else if (selectedRole == 'Homemaker') {
+                              motivation = 'Daily Life';
+                              visitedPlaces = ['Apartment', 'Grocery Market', 'Tailor Shop', 'Supermarket'];
+                            }
+
+                            // 2. Construct UserProgress
+                            final progress = UserProgress(
+                              name: _googleNameController.text.trim().isNotEmpty
+                                  ? _googleNameController.text.trim()
+                                  : selectedEmail.split('@').first,
+                              role: selectedRole,
+                              motivation: motivation,
+                              visitedPlaces: visitedPlaces,
+                              commuteModes: ['Cab', 'Metro'],
+                              level: 'None',
+                              nativeLanguage: 'English',
+                              learningGoal: motivation,
+                              initialConfidence: 15,
+                              currentConfidence: 15,
+                              lastActive: DateTime.now(),
                             );
 
-                            if (!userExists) {
-                              // 1. Map role to motivation and places
-                              String motivation = 'Daily Survival';
-                              List<String> visitedPlaces = ['Metro', 'Cafe'];
-                              if (selectedRole == 'Working Professional') {
-                                motivation = 'Job / Office';
-                                visitedPlaces = ['Office', 'Meeting Room', 'Cafeteria', 'Metro'];
-                              } else if (selectedRole == 'Student') {
-                                motivation = 'College / Study';
-                                visitedPlaces = ['Classroom', 'Hostel', 'Canteen', 'Library', 'Metro'];
-                              } else if (selectedRole == 'Tourist') {
-                                motivation = 'Travel / Tourism';
-                                visitedPlaces = ['Hotel', 'Heritage Site', 'Auto Stand', 'Bus Station'];
-                              } else if (selectedRole == 'Homemaker') {
-                                motivation = 'Daily Life';
-                                visitedPlaces = ['Apartment', 'Grocery Market', 'Tailor Shop', 'Supermarket'];
-                              }
-
-                              // 2. Construct UserProgress
-                              final progress = UserProgress(
-                                name: selectedAccount['name']!,
-                                role: selectedRole,
-                                motivation: motivation,
-                                visitedPlaces: visitedPlaces,
-                                commuteModes: ['Cab', 'Metro'],
-                                level: 'None',
-                                nativeLanguage: 'English',
-                                learningGoal: motivation,
-                                initialConfidence: 15,
-                                currentConfidence: 15,
-                                lastActive: DateTime.now(),
-                              );
-
-                              // 3. Save details
-                              await LocalDb.saveUserProgress(progress);
-                              await LocalDb.updateJourneyOrderOnPreferenceChange(progress);
-                              await LocalDb.setOnboardingCompleted(true);
-                              
-                              // 4. Trigger AI agent pregeneration of Day 1
-                              try {
-                                await ref.read(lessonsListProvider.notifier).pregeneratePersonalizedLesson(1);
-                              } catch (e) {
-                                debugPrint('Error pregenerating personalized lesson: $e');
-                              }
-                            } else {
-                              // Reload the existing journey order & state for returning user
-                              await LocalDb.setActiveUserId(userId);
+                            // 3. Save details
+                            await LocalDb.saveUserProgress(progress);
+                            await LocalDb.updateJourneyOrderOnPreferenceChange(progress);
+                            await LocalDb.setOnboardingCompleted(true);
+                            
+                            // 4. Trigger AI agent pregeneration of Day 1
+                            try {
+                              await ref.read(lessonsListProvider.notifier).pregeneratePersonalizedLesson(1);
+                            } catch (e) {
+                              debugPrint('Error pregenerating personalized lesson: $e');
                             }
+                          } else {
+                            // Reload the existing journey order & state for returning user
+                            await LocalDb.setActiveUserId(userId);
+                          }
 
-                            if (this.mounted) {
-                              Navigator.pop(this.context); // close progress dialog
-                              await _performPostLoginTasks(userId);
-                            }
-                          },
-                          child: Text(userExists ? 'Sign In' : 'Create Profile & Personalize Path'),
-                        ),
-                      ],
+                          if (this.mounted) {
+                            Navigator.pop(this.context); // close progress dialog
+                            await _performPostLoginTasks(userId);
+                          }
+                        },
+                        child: Text(userExists ? 'Sign In Directly' : 'Link Google Email & Personalize'),
+                      ),
                     ],
                   ),
                 ),
