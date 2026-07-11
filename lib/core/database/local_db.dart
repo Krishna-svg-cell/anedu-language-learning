@@ -11,6 +11,12 @@ import '../../models/lesson.dart';
 import 'curriculum_generator.dart';
 import '../agents/agent_orchestrator.dart';
 
+enum ConnectionStatus {
+  connected,
+  noApiKey,
+  failed,
+}
+
 class LocalDb {
   static List<Lesson> _cachedLessons = [];
   static const String settingsBoxName = 'settings_box';
@@ -126,11 +132,39 @@ class LocalDb {
   }
 
   static String get geminiBackendUrl {
-    return _settingsBox.get('gemini_backend_url', defaultValue: 'http://localhost:3000');
+    final String url = _settingsBox.get('gemini_backend_url', defaultValue: 'http://localhost:3000');
+    if (url.contains('localhost') && defaultTargetPlatform == TargetPlatform.android) {
+      return url.replaceAll('localhost', '10.0.2.2');
+    }
+    return url;
   }
 
   static Future<void> setGeminiBackendUrl(String url) async {
     await _settingsBox.put('gemini_backend_url', url.trim());
+  }
+
+  static Future<ConnectionStatus> testBackendConnection(String url) async {
+    try {
+      String cleanUrl = url.trim();
+      if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+      }
+      if (cleanUrl.contains('localhost') && defaultTargetPlatform == TargetPlatform.android) {
+        cleanUrl = cleanUrl.replaceAll('localhost', '10.0.2.2');
+      }
+      final uri = Uri.parse('$cleanUrl/api/health');
+      final response = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'healthy') {
+          final bool apiConnected = data['apiConnected'] as bool? ?? false;
+          return apiConnected ? ConnectionStatus.connected : ConnectionStatus.noApiKey;
+        }
+      }
+    } catch (e) {
+      debugPrint("Health check connection test failed: $e");
+    }
+    return ConnectionStatus.failed;
   }
 
   static String? get lastAiChatDate {

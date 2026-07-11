@@ -17,6 +17,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late TextEditingController _apiKeyController;
   late TextEditingController _backendUrlController;
   bool _obscureApiKey = true;
+  bool _isTestingConnection = false;
+  ConnectionStatus? _connectionStatus;
 
   @override
   void initState() {
@@ -192,11 +194,94 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      suffixIcon: IconButton(
-                        icon: const Icon(
-                          Icons.check_circle_rounded,
-                          color: AppTheme.successGreen,
-                          size: 20,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: _isTestingConnection
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Icon(
+                                _connectionStatus == ConnectionStatus.connected
+                                    ? Icons.cloud_done_rounded
+                                    : (_connectionStatus == ConnectionStatus.noApiKey
+                                        ? Icons.cloud_queue_rounded
+                                        : (_connectionStatus == ConnectionStatus.failed ? Icons.cloud_off_rounded : Icons.cloud_sync_rounded)),
+                                size: 16,
+                                color: _connectionStatus == ConnectionStatus.connected
+                                    ? AppTheme.successGreen
+                                    : (_connectionStatus == ConnectionStatus.noApiKey
+                                        ? Colors.orange
+                                        : (_connectionStatus == ConnectionStatus.failed ? AppTheme.errorRed : AppTheme.primaryBlue)),
+                              ),
+                        label: Text(
+                          _isTestingConnection
+                              ? 'Testing...'
+                              : (_connectionStatus == ConnectionStatus.connected
+                                  ? 'Connected!'
+                                  : (_connectionStatus == ConnectionStatus.noApiKey
+                                      ? 'Server Ready (No API Key)'
+                                      : (_connectionStatus == ConnectionStatus.failed ? 'Failed (Offline)' : 'Test Connection'))),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _connectionStatus == ConnectionStatus.connected
+                                ? AppTheme.successGreen
+                                : (_connectionStatus == ConnectionStatus.noApiKey
+                                    ? Colors.orange
+                                    : (_connectionStatus == ConnectionStatus.failed ? AppTheme.errorRed : AppTheme.primaryBlue)),
+                          ),
+                        ),
+                        onPressed: _isTestingConnection
+                            ? null
+                            : () async {
+                                setState(() {
+                                  _isTestingConnection = true;
+                                  _connectionStatus = null;
+                                });
+                                final status = await LocalDb.testBackendConnection(_backendUrlController.text);
+                                setState(() {
+                                  _isTestingConnection = false;
+                                  _connectionStatus = status;
+                                });
+                                if (mounted) {
+                                  if (status == ConnectionStatus.connected) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Connected successfully! Gemini API key is loaded on proxy.'),
+                                        backgroundColor: AppTheme.successGreen,
+                                      ),
+                                    );
+                                  } else if (status == ConnectionStatus.noApiKey) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Server connected, but GEMINI_API_KEY is not defined in backend/.env!'),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Could not reach the server proxy. Please check URL or start backend proxy.'),
+                                        backgroundColor: AppTheme.errorRed,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         onPressed: () async {
                           await LocalDb.setGeminiBackendUrl(_backendUrlController.text);
@@ -209,8 +294,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             );
                           }
                         },
+                        child: const Text('Save URL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),

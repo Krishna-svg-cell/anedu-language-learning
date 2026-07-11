@@ -192,6 +192,11 @@ app.post('/api/verified-lessons/review', (req, res) => {
   return res.json({ success: true, status: cached.lifecycleStatus });
 });
 
+// Health check endpoint for diagnostic connection testing
+app.get('/api/health', (req, res) => {
+  return res.json({ status: 'healthy', apiConnected: !!GEMINI_API_KEY });
+});
+
 // Subscription verification endpoint (Backend premium checks)
 app.post('/api/verify-subscription', (req, res) => {
   const { userId, subscriptionToken } = req.body;
