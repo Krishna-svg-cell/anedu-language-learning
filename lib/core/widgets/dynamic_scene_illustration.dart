@@ -148,31 +148,32 @@ class _DynamicSceneIllustrationState extends State<DynamicSceneIllustration>
       builder: (context, constraints) {
         return ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: Container(
-            color: isDarkCard ? AppTheme.darkCard : Colors.grey[100],
-            height: widget.height,
-            width: double.infinity,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Base Image
-                Image.asset(
-                  widget.imagePath,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    // Fail-safe default
-                    return Container(
-                      color: AppTheme.primaryBlue.withOpacity(0.08),
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_search_rounded,
-                          size: 40,
-                          color: AppTheme.primaryBlue,
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Container(
+              color: isDarkCard ? AppTheme.darkCard : Colors.grey[100],
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Base Image
+                  Image.asset(
+                    widget.imagePath,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      // Fail-safe default
+                      return Container(
+                        color: AppTheme.primaryBlue.withOpacity(0.08),
+                        child: const Center(
+                          child: Icon(
+                            Icons.image_search_rounded,
+                            size: 40,
+                            color: AppTheme.primaryBlue,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
 
                 // Time of Day Filter Overlay
                 if (tintOverlay != null) tintOverlay,
@@ -277,9 +278,10 @@ class _DynamicSceneIllustrationState extends State<DynamicSceneIllustration>
               ],
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 }
 
