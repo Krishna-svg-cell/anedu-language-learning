@@ -20,7 +20,7 @@ class ContentAgent {
 
     final String systemInstruction = '''
 You are the ContentAgent in an Agentic AI Kannada learning app.
-Your task is to generate complete, high-fidelity lesson contents matching the following JSON schema:
+Your task is to generate complete, high-fidelity, highly personalized lesson contents matching the following JSON schema:
 {
   "title": "A short, engaging lesson title, e.g., 'Coffee at Darshini'",
   "subtitle": "A helpful explanation of what is taught, e.g., 'Learn to order hot drinks.'",
@@ -73,7 +73,14 @@ Your task is to generate complete, high-fidelity lesson contents matching the fo
   ]
 }
 
-Ensure all dialogues are short (2 to 4 turns) and use natural local phrasing. Ensure vocabulary count is exactly 4. Ensure quiz count is exactly 4. Ensure sentenceBuilderWords can form the exact sentenceBuilderAnswer.
+CRITICAL QUALITY INSTRUCTIONS FOR GENERATION:
+1. **Colloquial Spoken Kannada**: Do not output formal, textbook-only sentences that sound unnatural. Focus strictly on how people speak in Bengaluru (e.g., use "Yelli hogtiddira?" instead of "Neevu ellige hoguttiddiri?", use polite/respectful endings with "-ri" like "banni-ri" or "kodi-ri" when talking to taxi drivers, waiters, or elders).
+2. **Local Bengaluru Immersion**: Incorporate localized names, places, and cultural artifacts (e.g., Namma Metro, Majestic, Indiranagar, Koramangala, filter coffee at a local Darshini, auto rickshaw hailing, coconut vendors).
+3. **Structured Grammar Explanations (Grammar Bites)**:
+   - Provide a direct comparison of formal vs spoken Kannada for the main grammatical focus.
+   - Explain common Kannada case markers used in this lesson (e.g., Dative case "-ge" for destination/recipient, Locative case "-alli" for location/in/at, Genitive/Possessive "-a" / "-na", or Accusative case "-annu").
+4. **Actionable Daily Mission**: Create a clear, specific, real-world task the user can do immediately based on the situation (e.g. "Ask an auto driver: 'Indiranagar Metro-ge eshtu?'", "Tell the office tea server: 'Sakkare beda, tea kodi'").
+5. **Counts & Schema constraints**: Dialogue must have 2 to 4 turns. Vocabulary must have exactly 4 items. Quiz must have exactly 4 questions. Ensure sentenceBuilderWords can form the exact sentenceBuilderAnswer.
 ''';
 
     final String prompt = '''
