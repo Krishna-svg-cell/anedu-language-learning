@@ -89,7 +89,7 @@ Tutor personalization instruction: ${state.customData['tutor_instruction'] ?? ''
 ''';
 
     Map<String, dynamic>? lessonJson;
-    final bool isOnline = progress.xp > 0; // indicates online/offline capability
+    const bool isOnline = true; // Always attempt online generation, falls back gracefully if offline
     if (isOnline) {
       lessonJson = await ModelRouter.instance.queryStructuredJson(
         systemInstruction: systemInstruction,
@@ -114,8 +114,32 @@ Tutor personalization instruction: ${state.customData['tutor_instruction'] ?? ''
         finalLesson = CurriculumGenerator.getRawLessonForDay(day);
       }
     } else {
-      // Fallback to static rule curriculum if offline
-      finalLesson = CurriculumGenerator.getRawLessonForDay(day);
+      // Fallback to static rule curriculum if offline, but personalize it!
+      final baseLesson = CurriculumGenerator.getRawLessonForDay(day);
+      
+      String personalizedDesc = baseLesson.situationDescription;
+      String personalizedMission = baseLesson.missionDescription;
+      
+      final roleLower = progress.role.toLowerCase();
+      
+      if (roleLower.contains('student')) {
+        personalizedDesc = "As a student at college, neevu (you) are in a classroom/canteen context. " + baseLesson.situationDescription;
+        personalizedMission = baseLesson.missionDescription + " Try doing this with a classmate or roommate.";
+      } else if (roleLower.contains('professional') || roleLower.contains('work')) {
+        personalizedDesc = "At your workplace/office, neevu (you) are interacting with colleagues. " + baseLesson.situationDescription;
+        personalizedMission = baseLesson.missionDescription + " Try doing this with a coworker or team member.";
+      } else if (roleLower.contains('tourist') || roleLower.contains('travel')) {
+        personalizedDesc = "As a traveler visiting Bengaluru, neevu (you) are exploring sights. " + baseLesson.situationDescription;
+        personalizedMission = baseLesson.missionDescription + " Try doing this with a shopkeeper, driver, or hotel guide.";
+      } else if (roleLower.contains('homemaker') || roleLower.contains('home')) {
+        personalizedDesc = "In your residential apartment, neevu (you) are managing daily errands. " + baseLesson.situationDescription;
+        personalizedMission = baseLesson.missionDescription + " Try doing this with a delivery agent, guard, or neighbor.";
+      }
+      
+      finalLesson = baseLesson.copyWith(
+        situationDescription: personalizedDesc,
+        missionDescription: personalizedMission,
+      );
     }
 
     return state.copyWith(

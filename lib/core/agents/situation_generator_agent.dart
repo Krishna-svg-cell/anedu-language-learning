@@ -63,7 +63,7 @@ Generate a highly relevant, custom situation outline tailored to these parameter
 
     // Query structured JSON
     Map<String, dynamic>? outline;
-    final bool isOnline = progress.xp > 0; // standard indicator or network check. We can call ModelRouter.
+    const bool isOnline = true; // Always attempt online generation, falls back gracefully if offline
     if (isOnline) {
       outline = await ModelRouter.instance.queryStructuredJson(
         systemInstruction: systemInstruction,

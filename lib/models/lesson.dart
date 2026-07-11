@@ -233,6 +233,50 @@ class Lesson {
             : const [],
       );
 
+  Lesson copyWith({
+    String? id,
+    String? title,
+    String? subtitle,
+    LessonCategory? category,
+    String? situationDescription,
+    List<VocabularyWord>? vocabulary,
+    List<DialogueTurn>? dialogue,
+    List<QuizQuestion>? quiz,
+    List<String>? sentenceBuilderWords,
+    String? sentenceBuilderAnswer,
+    String? sentenceBuilderTranslation,
+    String? missionDescription,
+    int? xpReward,
+    int? coinReward,
+    bool? isUnlocked,
+    bool? isCompleted,
+    String? customIllustrationPath,
+    String? mittuAnimationState,
+    List<String>? grammarBites,
+  }) {
+    return Lesson(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      category: category ?? this.category,
+      situationDescription: situationDescription ?? this.situationDescription,
+      vocabulary: vocabulary ?? this.vocabulary,
+      dialogue: dialogue ?? this.dialogue,
+      quiz: quiz ?? this.quiz,
+      sentenceBuilderWords: sentenceBuilderWords ?? this.sentenceBuilderWords,
+      sentenceBuilderAnswer: sentenceBuilderAnswer ?? this.sentenceBuilderAnswer,
+      sentenceBuilderTranslation: sentenceBuilderTranslation ?? this.sentenceBuilderTranslation,
+      missionDescription: missionDescription ?? this.missionDescription,
+      xpReward: xpReward ?? this.xpReward,
+      coinReward: coinReward ?? this.coinReward,
+      isUnlocked: isUnlocked ?? this.isUnlocked,
+      isCompleted: isCompleted ?? this.isCompleted,
+      customIllustrationPath: customIllustrationPath ?? this.customIllustrationPath,
+      mittuAnimationState: mittuAnimationState ?? this.mittuAnimationState,
+      grammarBites: grammarBites ?? this.grammarBites,
+    );
+  }
+
   // Create sample database lessons
   static List<Lesson> getSampleLessons() {
     final List<Lesson> list = [];
