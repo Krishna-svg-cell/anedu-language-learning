@@ -307,6 +307,12 @@ class LocalDb {
     await _usersBox.put(userId, progress.toJson());
     await _progressBox.put('user_progress', progress.toJson());
 
+    // Sync to Node.js backend progress database if linked to Google email!
+    if (userId.startsWith('google_user_')) {
+      final email = userId.substring('google_user_'.length);
+      syncProgressToBackend(email, progress);
+    }
+
     // Synchronize to Firestore for all Firebase authenticated accounts (including anonymous Guests)
     if (!isFirebaseInitialized) return;
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -320,6 +326,61 @@ class LocalDb {
       } catch (e) {
         debugPrint("Firestore save progress error (handled offline): $e");
       }
+    }
+  }
+
+  static Future<void> syncProgressToBackend(String email, UserProgress progress) async {
+    final backendUrl = geminiBackendUrl;
+    if (backendUrl.isEmpty) return;
+    try {
+      String cleanUrl = backendUrl.trim();
+      if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+      }
+      final List<String> journeyOrder = List<String>.from(_settingsBox.get('journey_order') ?? []);
+      await http.post(
+        Uri.parse('$cleanUrl/api/progress'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'progress': {
+            ...progress.toJson(),
+            'journey_order': journeyOrder,
+          },
+        }),
+      );
+      debugPrint("Successfully saved progress to Node backend DB for $email");
+    } catch (e) {
+      debugPrint("Error syncing progress to Node backend: $e");
+    }
+  }
+
+  static Future<void> syncProgressFromBackend(String userId) async {
+    if (!userId.startsWith('google_user_')) return;
+    final email = userId.substring('google_user_'.length);
+    final backendUrl = geminiBackendUrl;
+    if (backendUrl.isEmpty) return;
+    
+    try {
+      String cleanUrl = backendUrl.trim();
+      if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+      }
+      final response = await http.get(Uri.parse('$cleanUrl/api/progress/${Uri.encodeComponent(email)}'));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final progress = UserProgress.fromJson(data);
+        await _usersBox.put(userId, progress.toJson());
+        await _progressBox.put('user_progress', progress.toJson());
+        
+        if (data['journey_order'] != null) {
+          final List<dynamic> jo = data['journey_order'];
+          await _settingsBox.put('journey_order', jo.cast<String>());
+        }
+        debugPrint("Successfully synced and restored progress from Node backend DB for $email");
+      }
+    } catch (e) {
+      debugPrint("Error syncing progress from Node backend: $e");
     }
   }
 

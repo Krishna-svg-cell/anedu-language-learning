@@ -192,6 +192,57 @@ app.post('/api/verified-lessons/review', (req, res) => {
   return res.json({ success: true, status: cached.lifecycleStatus });
 });
 
+const fs = require('fs');
+const path = require('path');
+const PROGRESS_DB_FILE = path.join(__dirname, 'progress_database.json');
+
+// Helper to read database
+function readProgressDb() {
+  try {
+    if (fs.existsSync(PROGRESS_DB_FILE)) {
+      const raw = fs.readFileSync(PROGRESS_DB_FILE, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error("Error reading progress DB:", e);
+  }
+  return {};
+}
+
+// Helper to write database
+function writeProgressDb(data) {
+  try {
+    fs.writeFileSync(PROGRESS_DB_FILE, JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error("Error writing progress DB:", e);
+  }
+}
+
+// GET progress for an email
+app.get('/api/progress/:email', (req, res) => {
+  const { email } = req.params;
+  console.log(`Fetching progress for email: ${email}`);
+  const db = readProgressDb();
+  const record = db[email.toLowerCase().trim()];
+  if (record) {
+    return res.json(record);
+  }
+  return res.status(404).json({ error: "Progress not found" });
+});
+
+// POST save progress for an email
+app.post('/api/progress', (req, res) => {
+  const { email, progress } = req.body;
+  if (!email || !progress) {
+    return res.status(400).json({ error: "Missing email or progress data" });
+  }
+  console.log(`Saving progress for email: ${email}`);
+  const db = readProgressDb();
+  db[email.toLowerCase().trim()] = progress;
+  writeProgressDb(db);
+  return res.json({ success: true });
+});
+
 // Health check endpoint for diagnostic connection testing
 app.get('/api/health', (req, res) => {
   return res.json({ status: 'healthy', apiConnected: !!GEMINI_API_KEY });

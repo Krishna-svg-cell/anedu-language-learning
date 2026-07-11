@@ -28,6 +28,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     // Set active user id in LocalDb
     await LocalDb.setActiveUserId(uid);
 
+    // Sync from Node.js backend progress database
+    await LocalDb.syncProgressFromBackend(uid);
+
     // Attempt to restore progress from Firestore (hybrid offline backup)
     await LocalDb.restoreProgressFromFirestore(uid);
 
@@ -192,7 +195,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             final isDark = Theme.of(context).brightness == Brightness.dark;
             
             // Check if the current email has an existing account in our database
-            final String userId = "google_user_${selectedEmail.replaceAll('@', '_').replaceAll('.', '_')}";
+            final String userId = "google_user_$selectedEmail";
             final bool userExists = Hive.box(LocalDb.usersBoxName).containsKey(userId);
 
             return Dialog(
@@ -445,8 +448,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             ),
                           );
 
-                          if (!userExists) {
-                            // 1. Map role to motivation and places
+                          // 1. Sync from the backend proxy database in case they signed in on another device or restarted
+                          await LocalDb.syncProgressFromBackend(userId);
+                          
+                          // Recheck local existence
+                          final bool finalUserExists = Hive.box(LocalDb.usersBoxName).containsKey(userId);
+
+                          if (!finalUserExists) {
+                            // Map role to motivation and places
                             String motivation = 'Daily Survival';
                             List<String> visitedPlaces = ['Metro', 'Cafe'];
                             if (selectedRole == 'Working Professional') {
@@ -480,7 +489,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               lastActive: DateTime.now(),
                             );
 
-                            // 3. Save details
+                            // 3. Save details (which automatically syncs to Node backend)
                             await LocalDb.saveUserProgress(progress);
                             await LocalDb.updateJourneyOrderOnPreferenceChange(progress);
                             await LocalDb.setOnboardingCompleted(true);
