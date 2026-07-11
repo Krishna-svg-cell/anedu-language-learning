@@ -20,7 +20,12 @@ class LocalDb {
 
   static bool get isFirebaseInitialized {
     try {
-      return Firebase.apps.isNotEmpty;
+      if (Firebase.apps.isEmpty) return false;
+      final apiKey = Firebase.app().options.apiKey;
+      if (apiKey.contains('Dummy') || apiKey.isEmpty) {
+        return false;
+      }
+      return true;
     } catch (_) {
       return false;
     }
